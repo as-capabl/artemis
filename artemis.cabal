@@ -1,0 +1,35 @@
+name:                artemis
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/as-capabl/artemis#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2016 Hidenori Azuma
+category:            Control
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Control.Arrow.Artemis, Control.Arrow.Artemis.CompatPrelude
+  other-modules:       Control.Arrow.Artemis.Type, Control.Arrow.Artemis.Parse, Control.Arrow.Artemis.Build
+  build-depends:       base >= 4.7 && < 5, haskell-src-meta >= 0.6 && < 0.7,
+                       template-haskell >= 2.10, parsec >= 3.1 && < 4
+  default-language:    Haskell2010
+
+Test-suite spec
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  hs-source-dirs:      spec
+  main-is:             spec.hs
+--  other-modules:       RandomProc, LoopUtil
+  Build-depends:       base >= 4.7 && < 5, hspec >=0.2.0, constrained-categories >= 0.2 && < 0.3,
+                       artemis -any
+
+source-repository head
+  type:     git
+  location: https://github.com/as-capabl/artemis
