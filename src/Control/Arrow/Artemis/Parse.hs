@@ -14,6 +14,9 @@ import Language.Haskell.TH
 import qualified Language.Haskell.Meta as Meta
 
 import Control.Arrow.Artemis.Type
+import Control.Arrow.Artemis.Modification
+import qualified Data.Set as Set
+import qualified Data.Foldable as Fd
 
 parseArrowExp ::
     String -> Either String ArrowExp
@@ -82,19 +85,44 @@ ident =
     t <- many (alphaNum)
     return $ CPIdent (mkName (h:t))
 
-makeArrowExp pat body =
+makeArrowExp gPat bodyStr =
     let
-        compBody = "\\" ++ show pat ++ " ->" ++ body
-        metaResult = Meta.parseExp compBody
-        cmds exp = [testcom exp] --stab
-        testcom exp = Command {
-            cmdInput = pat,
-            cmdOutput = CPTail,
-            cmdBody = exp
-          }
+        -- Parse haskell expression
+        compBody = "\\" ++ show gPat ++ " ->" ++ bodyStr
+        metaResult@(Right wholeExp) = Meta.parseExp compBody
+
+        -- Decompose
+        (patExp, bodyExp) = splitLambda wholeExp
+        cpat = setToCPat $ listInputs (cpatToSet patExp) bodyExp
+        resultAExp = ArrowExp {expInput = gPat, expBody = cmds cpat bodyExp}
       in
         case metaResult
           of
             Left err -> Left err
-            Right exp -> Right $
-                ArrowExp {expInput = pat, expBody = cmds exp}
+            Right _ -> Right resultAExp
+  where
+    cpatToSet = Set.fromList . Fd.toList
+
+    cmds cpat (DoE xs) = decomposeBind (cpatToSet cpat) xs
+
+    cmds cpat body = [Command {
+         cmdInput = cpat,
+         cmdOutput = CPTail,
+         cmdBody = body
+       }]
+
+    decomposeBind varSet ((BindS pat exp):xs) =
+        (Command {
+            cmdInput = setToCPat $ listInputs varSet exp,
+            cmdOutput = expToCPat pat,
+            cmdBody = exp})
+        : decomposeBind (varSet `Set.union` cpatToSet (expToCPat pat)) xs
+
+    decomposeBind varSet ((NoBindS exp):xs) =
+        (Command {
+            cmdInput = setToCPat $ listInputs varSet exp,
+            cmdOutput = if null xs then CPTail else CPUnnamed,
+            cmdBody = exp})
+        : decomposeBind varSet xs
+
+    decomposeBind varSet [] = []

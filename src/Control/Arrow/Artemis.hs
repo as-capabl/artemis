@@ -4,7 +4,8 @@
 module
     Control.Arrow.Artemis
       (
-        proc
+        proc,
+        proc_fail
       )
 where
 
@@ -25,3 +26,11 @@ proc = QuasiQuoter {
     quoteType = undefined,
     quoteDec = undefined
   }
+
+proc_fail = QuasiQuoter {
+    quoteExp = \s -> quoteExp proc s >> return (VarE 'False) `recover` return (VarE 'True),
+    quotePat = undefined,
+    quoteType = undefined,
+    quoteDec = undefined
+  }
+

@@ -15,6 +15,7 @@ import Control.Applicative
 
 import Control.Arrow.Artemis
 
+
 --
 -- Local definitions
 --
@@ -39,11 +40,11 @@ main = hspec $
 
 basics =
   do
-    describe "The new arrow notation" $
+    describe "The new arrow notation" $ 
       do
         it "may looks like a normal haskell expression." $
           do
-            let ar = [proc| (x, _) -> x |]
+            let ar = [proc| (x, y) -> x |]
                 -- By -XArrows : proc (x, _) -> returnA -< x
 
             r <- runKleisli ar (1, 2)
@@ -67,9 +68,23 @@ basics =
             r <- runKleisli ar (1, 2)
             r `shouldBe` (3::Int)
 
+        it "can make vertical compositions by \'do\'" $
+         --"Because formal arguments and expression bodies have arrow types."
+          do
+            let ar = [proc| (x, y) ->
+                  do
+                    z <- liftA2 (+) x y
+                    Kleisli (`shouldBe` 3) <<< z
+                  |]
+                -- By -XArrows : proc (x, y) ->
+                --   do
+                --     z <- returnA -< x + y
+                --     Kleisli (`shouldBe` 3) -< z
+
+            runKleisli ar (1, 2)
+
 {-
         it "doesn't allow tuples of size >= 3 due to the Cartesian class definition." $
           do
-            r <- runKleisli [proc| (x, y, z) -> x |] (1, 2, 3)
-            r `shouldBe` 1
+            [proc_fail| (x, y, z) -> x |] `shouldBe` True
 -}
