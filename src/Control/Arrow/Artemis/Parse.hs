@@ -93,7 +93,7 @@ makeArrowExp gPat bodyStr =
 
         -- Decompose
         (patExp, bodyExp) = splitLambda wholeExp
-        cpat = setToCPat $ listInputs (cpatToSet patExp) bodyExp
+        cpat = listInputs (cpatToSet patExp) bodyExp
         resultAExp = ArrowExp {expInput = gPat, expBody = cmds cpat bodyExp}
       in
         case metaResult
@@ -103,26 +103,35 @@ makeArrowExp gPat bodyStr =
   where
     cpatToSet = Set.fromList . Fd.toList
 
-    cmds cpat (DoE xs) = decomposeBind (cpatToSet cpat) xs
+    cmds cpat (DoE xs) = decomposeBind cpat xs
 
     cmds cpat body = [Command {
          cmdInput = cpat,
          cmdOutput = CPTail,
-         cmdBody = body
+         cmdBody = Right body
        }]
 
     decomposeBind varSet ((BindS pat exp):xs) =
         (Command {
-            cmdInput = setToCPat $ listInputs varSet exp,
+            cmdInput = listInputs varSet exp,
             cmdOutput = expToCPat pat,
-            cmdBody = exp})
+            cmdBody = Right exp})
         : decomposeBind (varSet `Set.union` cpatToSet (expToCPat pat)) xs
 
     decomposeBind varSet ((NoBindS exp):xs) =
         (Command {
-            cmdInput = setToCPat $ listInputs varSet exp,
+            cmdInput = listInputs varSet exp,
             cmdOutput = if null xs then CPTail else CPUnnamed,
-            cmdBody = exp})
+            cmdBody = Right exp})
         : decomposeBind varSet xs
+
+    decomposeBind varSet ((LetS decs):xs) =
+        let outPat = collectLetOutputs decs
+          in
+            (Command {
+                cmdInput = listLetInputs varSet decs,
+                cmdOutput = outPat,
+                cmdBody = Left decs})
+            : decomposeBind (varSet `Set.union` cpatToSet outPat) xs
 
     decomposeBind varSet [] = []

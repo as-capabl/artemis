@@ -20,7 +20,7 @@ proc :: QuasiQuoter
 proc = QuasiQuoter {
     quoteExp = \s -> case Ar.parseArrowExp s
       of
-        Left s -> error s
+        Left s -> fail s
         Right exp -> Ar.buildArrow exp,
     quotePat = undefined,
     quoteType = undefined,
@@ -28,7 +28,12 @@ proc = QuasiQuoter {
   }
 
 proc_fail = QuasiQuoter {
-    quoteExp = \s -> quoteExp proc s >> return (VarE 'False) `recover` return (VarE 'True),
+    quoteExp = \s ->
+      do
+        quoteExp proc s
+        return (ConE 'False)
+      `recover` do
+        return (ConE 'True),
     quotePat = undefined,
     quoteType = undefined,
     quoteDec = undefined

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module
     Control.Arrow.Artemis.Type
@@ -6,16 +7,19 @@ module
         CPat'(..),
         CPat,
         listToCPat,
+        setToCPat,
         Command(..),
         ArrowExp (..),
         NameSet,
-        setToCPat,
+        setToCPat
       )
 where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Data.Hashable
+import Data.Witherable
+import Data.Maybe (fromJust)
 import qualified Data.HashSet as H
 import qualified Data.Traversable as Tv
 import Data.Set as Set
@@ -28,6 +32,13 @@ data CPat' a =
     CPUnnamed | -- _
     CPUnit -- ()
   deriving (Eq, Functor, Foldable, Traversable)
+
+instance
+    Witherable CPat'
+  where
+    mapMaybe f (CPIdent (f -> Nothing))  = CPUnnamed
+    mapMaybe f (CPPair x y) = CPPair (mapMaybe f x) (mapMaybe f y)
+    mapMaybe f cpat = fmap (fromJust . f) cpat
 
 type CPat = CPat' Name
 
@@ -47,11 +58,12 @@ listToCPat [] = CPUnit
 setToCPat :: NameSet -> CPat
 setToCPat  = listToCPat . Set.toList
 
+
 -- |Arrow command
 data Command = Command {
-    cmdInput :: CPat,
+    cmdInput :: NameSet,
     cmdOutput :: CPat,
-    cmdBody :: Exp
+    cmdBody :: Either [Dec] Exp
   }
   deriving Show
 
@@ -74,24 +86,3 @@ data ArrowExp = ArrowExp {
 --
 type NameSet = Set.Set Name
 
-{-
-instance
-    Hashable OccName
-  where
-    hash = hash . show
-
-instance
-    Hashable NameSpace
-  where
-    hash = hash . show
-
-instance
-    Hashable NameFlavour
-  where
-    hash = hash . show
-
-instance
-    Hashable Name
-  where
-    hash = hash . showName
--}

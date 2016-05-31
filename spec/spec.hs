@@ -40,7 +40,7 @@ main = hspec $
 
 basics =
   do
-    describe "The new arrow notation" $ 
+    describe "The new arrow notation" $
       do
         it "may looks like a normal haskell expression." $
           do
@@ -69,7 +69,6 @@ basics =
             r `shouldBe` (3::Int)
 
         it "can make vertical compositions by \'do\'" $
-         --"Because formal arguments and expression bodies have arrow types."
           do
             let ar = [proc| (x, y) ->
                   do
@@ -83,8 +82,39 @@ basics =
 
             runKleisli ar (1, 2)
 
-{-
+        it "can take patterns in lhs" $
+          do
+            let ar = [proc| (x, y) ->
+                  do
+                    (z, _) <- (\x y -> (x + y, x - y)) <$> x <*> y
+                    Kleisli (`shouldBe` 3) <<< z
+                  |]
+
+            runKleisli ar (1, 2)
+
+        it "can handle pure calculations by \'let\' in \'do\'" $
+          do
+            let ar = [proc| (x, y) ->
+                  do
+                    let z = x + y
+                        f p = p + 1
+                        r = z + f 1
+                    Kleisli (`shouldBe` 5) <<< r
+                  |]
+            runKleisli ar (1, 2)
+
+        it "can parallelize arrows automatically" $
+          do
+            let ar = [proc| (x, y) ->
+                  do
+                    x' <- fmap (+1) x
+                    y' <- fmap (*2) y
+                    Kleisli (`shouldBe` 6) <<< liftA2 (+) x' y'
+                  |]
+
+            runKleisli ar (1, 2)
+
         it "doesn't allow tuples of size >= 3 due to the Cartesian class definition." $
           do
             [proc_fail| (x, y, z) -> x |] `shouldBe` True
--}
+

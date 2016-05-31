@@ -6,7 +6,11 @@ module
         splitLambda,
         makeLambda,
         expToCPat,
-        listInputs
+        cpatToPat,
+        cpatToExp,
+        listInputs,
+        listLetInputs,
+        collectLetOutputs
       )
 where
 
@@ -17,6 +21,7 @@ import Data.Generics
 
 import Control.Arrow.Artemis.Type
 import qualified Data.Set as Set
+import qualified Data.Foldable as Fd
 
 --
 -- compose/decompose lambda
@@ -32,7 +37,7 @@ makeLambda :: CPat -> Exp -> Exp
 makeLambda cpat body = LamE [cpatToPat cpat] body
 
 --
--- CPat <-> Pat
+-- CPat <-> Pat, Exp
 --
 expToCPat :: Pat -> CPat
 expToCPat (TupP l) =
@@ -53,6 +58,31 @@ cpatToPat (CPIdent x) = VarP x
 cpatToPat (CPUnnamed) = WildP
 cpatToPat (CPUnit) = ConP '() []
 cpatToPat (CPTail) = error "Internal error: Modification 55"
+
+cpatToExp :: CPat -> Exp
+cpatToExp (CPPair x y) = TupE [cpatToExp x, cpatToExp y]
+cpatToExp (CPIdent x) = VarE x
+cpatToExp (CPUnnamed) = VarE 'undefined
+cpatToExp (CPUnit) = ConE '()
+cpatToExp (CPTail) = error "Internal error: Modification 60"
+
+--
+-- Manipulations for 'let'
+--
+listLetInputs :: NameSet -> [Dec] -> NameSet
+listLetInputs names decls = Fd.foldMap listDecl decls
+  where
+    listDecl = everything Set.union (mkQ Set.empty unPat)
+    unPat (VarE n) | Set.member n names = Set.singleton n
+    unPat _ = Set.empty
+
+collectLetOutputs :: [Dec] -> CPat
+collectLetOutputs [] = CPUnit
+collectLetOutputs (FunD name _ : xs) =
+    CPPair (CPIdent name) (collectLetOutputs xs)
+collectLetOutputs (ValD pat _ _ : xs) =
+    CPPair (expToCPat pat) (collectLetOutputs xs)
+collectLetOutput (_:xs) = collectLetOutputs xs
 
 --
 -- Traverse expression
